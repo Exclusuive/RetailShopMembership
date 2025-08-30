@@ -19,7 +19,6 @@ public struct MembershipType has copy, drop, store {
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
     version: u64,
 }
@@ -30,7 +29,6 @@ public struct Membership has key, store {
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
     updated_at: u64,
     version: u64,
@@ -51,7 +49,6 @@ public struct MembershipTypeCreated has copy, drop {
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
     version: u64,
 }
@@ -61,7 +58,6 @@ public struct MembershipTypeUpdated has copy, drop {
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
     version: u64,
 }
@@ -99,10 +95,9 @@ public fun new_membership_type(
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
 ) {
-    require_community_cap(community_cap, community);
+    require_community_cap(community, community_cap);
     assert!(!check_membership_type(community, name), EAlreadyExists);
 
     let community_id = object::id(community);
@@ -114,7 +109,6 @@ public fun new_membership_type(
         name,
         image_url,
         allow_user_mint,
-        allow_transfer,
         valid_period,
         version: 0,
     };
@@ -124,7 +118,6 @@ public fun new_membership_type(
         name,
         image_url,
         allow_user_mint,
-        allow_transfer,
         valid_period,
         version: membership_type.version,
     });
@@ -142,10 +135,9 @@ public fun update_membership_type(
     name: String,
     image_url: String,
     allow_user_mint: bool,
-    allow_transfer: bool,
     valid_period: Option<u64>,
 ) {
-    require_community_cap(community_cap, community);
+    require_community_cap(community, community_cap);
     assert!(check_membership_type(community, name), ENotExists);
 
     let community_id = object::id(community);
@@ -158,7 +150,6 @@ public fun update_membership_type(
 
     membership_type.image_url = image_url;
     membership_type.allow_user_mint = allow_user_mint;
-    membership_type.allow_transfer = allow_transfer;
     membership_type.valid_period = valid_period;
     membership_type.version = membership_type.version + 1;
 
@@ -167,7 +158,6 @@ public fun update_membership_type(
         name,
         image_url,
         allow_user_mint,
-        allow_transfer,
         valid_period,
         version: membership_type.version,
     });
@@ -179,7 +169,7 @@ public fun new_membership(
     name: String,
     ctx: &mut TxContext,
 ): Membership {
-    require_community_cap(community_cap, community);
+    require_community_cap(community, community_cap);
     assert!(check_membership_type(community, name), ENotExists);
 
     let community_id = object::id(community);
@@ -193,7 +183,6 @@ public fun new_membership(
         name,
         image_url: membership_type.image_url,
         allow_user_mint: membership_type.allow_user_mint,
-        allow_transfer: membership_type.allow_transfer,
         valid_period: membership_type.valid_period,
         updated_at: ctx.epoch_timestamp_ms(),
         version: membership_type.version,
@@ -221,7 +210,6 @@ public fun update_membership(
     );
     membership.image_url = membership_type.image_url;
     membership.allow_user_mint = membership_type.allow_user_mint;
-    membership.allow_transfer = membership_type.allow_transfer;
     membership.valid_period = membership_type.valid_period;
     membership.version = membership_type.version;
     membership.updated_at = ctx.epoch_timestamp_ms();
@@ -241,4 +229,43 @@ public fun make_membership_type_key(
 ): MembershipTypeKey<MembershipType> {
     let community_id = object::id(community);
     MembershipTypeKey<MembershipType> { community_id, name }
+}
+
+public fun get_membership_type(
+    community: &mut Community,
+    name: String,
+): &MembershipType {
+    dynamic_field::borrow(
+        get_uid(community),
+        MembershipTypeKey<MembershipType> { community_id: object::id(community), name },
+    )
+}
+
+public fun get_membership_name(membership: &Membership): &String {
+    &membership.name
+}
+
+public fun get_membership_image_url(membership: &Membership): &String {
+    &membership.image_url
+}
+
+public fun get_membership_allow_user_mint(membership: &Membership): &bool {
+    &membership.allow_user_mint
+}
+
+public fun get_membership_valid_period(membership: &Membership): &Option<u64> {
+    &membership.valid_period
+}
+    
+
+public fun get_membership_type_image_url(community: &mut Community, name: String): &String {
+    &get_membership_type(community, name).image_url
+}
+
+public fun get_membership_type_allow_user_mint(community: &mut Community, name: String): &bool {
+    &get_membership_type(community, name).allow_user_mint
+}
+
+public fun get_membership_type_valid_period(community: &mut Community, name: String): &Option<u64> {
+    &get_membership_type(community, name).valid_period
 }

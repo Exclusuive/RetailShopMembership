@@ -74,7 +74,7 @@ public fun add_config(
     type_name: String,
     content: String,
 ) {
-    require_community_cap(community_cap, community);
+    require_community_cap(community, community_cap);
 
     dynamic_field::add(
         &mut community.id,
@@ -83,7 +83,7 @@ public fun add_config(
     );
 }
 
-public fun require_community_cap(community_cap: &mut CommunityCap, community: &mut Community) {
+public fun require_community_cap(community: &mut Community, community_cap: &mut CommunityCap) {
     assert!(community_cap.community_id == object::id(community), ENotAuthorized);
 }
 
@@ -108,3 +108,34 @@ public(package) fun get_uid(community: &Community): &UID {
 public(package) fun get_mut_uid(community: &mut Community): &mut UID {
     &mut community.id
 }
+
+public fun get_community_id_from_cap(community_cap: &CommunityCap): &ID {
+    &community_cap.community_id
+}
+
+public fun get_community_name(community: &Community): &String {
+    &community.name
+}
+
+public fun get_community_description(community: &Community): &String {
+    &community.description
+}
+
+public fun check_config(community: &Community, type_name: String): bool {
+    dynamic_field::exists_(
+        &community.id,
+        TypeKey<ConfigType> { type_name },
+    )
+}
+
+public fun get_config(community: &Community, type_name: String): &ConfigType {
+    dynamic_field::borrow(
+        &community.id,
+        TypeKey<ConfigType> { type_name },
+    )
+}
+
+public fun get_config_content(config_type: &ConfigType): &String {
+    &config_type.content
+}
+
