@@ -78,3 +78,16 @@ public fun add_category(market: &mut RetailMarket, cap: &ShopCap, name: String) 
   assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
   market.categories.insert(name);
 }
+
+public fun add_custom_option(market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, price: u64) {
+  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+  let current_index = market.option_index;
+  market.option_index = current_index + 1;
+
+  let custom_option = CustomOption {
+    category_name,
+    name,
+    price
+  };
+  market.custom_options.insert(current_index, custom_option);
+}
