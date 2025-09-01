@@ -132,8 +132,8 @@ public(package) fun get_mut_uid(shop: &mut Shop): &mut UID {
     &mut shop.id
 }
 
-public fun get_shop_id_from_cap(shop_cap: &ShopCap): &ID {
-    &shop_cap.shop_id
+public fun get_shop_id_from_cap(shop_cap: &ShopCap): ID {
+    shop_cap.shop_id
 }
 
 public fun get_shop_name(shop: &Shop): &String {
