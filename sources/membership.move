@@ -1,6 +1,6 @@
 module exclusuive::exclusuive_membership;
 
-use exclusuive::community::{Community, CommunityCap, get_uid, get_mut_uid, require_community_cap};
+use exclusuive::shop::{Shop, ShopCap, get_uid, get_mut_uid, require_shop_cap};
 use std::string::String;
 use sui::display;
 use sui::dynamic_field;
@@ -15,7 +15,7 @@ const ENotExists: u64 = 4;
 // =======================================================
 
 public struct MembershipType has copy, drop, store {
-    community_id: ID,
+    shop_id: ID,
     name: String,
     image_url: String,
     allow_user_mint: bool,
@@ -25,17 +25,15 @@ public struct MembershipType has copy, drop, store {
 
 public struct Membership has key, store {
     id: UID,
-    community_id: ID,
+    shop_id: ID,
     name: String,
     image_url: String,
-    allow_user_mint: bool,
-    valid_period: Option<u64>,
-    updated_at: u64,
+    expiry_date: u64,
     version: u64,
 }
 
 public struct MembershipTypeKey<phantom T> has copy, drop, store {
-    community_id: ID,
+    shop_id: ID,
     name: String,
 }
 
@@ -90,17 +88,17 @@ fun init(otw: EXCLUSUIVE_MEMBERSHIP, ctx: &mut TxContext) {
 }
 
 public fun new_membership_type(
-    community: &mut Community,
-    community_cap: &mut CommunityCap,
+    shop: &mut Shop,
+    shop_cap: &mut ShopCap,
     name: String,
     image_url: String,
     allow_user_mint: bool,
     valid_period: Option<u64>,
 ) {
-    require_community_cap(community, community_cap);
-    assert!(!check_membership_type(community, name), EAlreadyExists);
+    require_shop_cap(shop, shop_cap);
+    assert!(!check_membership_type(shop, name), EAlreadyExists);
 
-    let community_id = object::id(community);
+    let shop_id = object::id(shop);
 
     let membership_type_key = make_membership_type_key(community, name);
 
