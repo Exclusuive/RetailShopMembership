@@ -92,10 +92,9 @@ public fun add_custom_option(market: &mut RetailMarket, cap: &ShopCap, category_
   market.custom_options.insert(current_index, custom_option);
 }
 
-public fun add_product(shop: &Shop, market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, description: String, image_url: String, price: u64) {
-  shop::require_shop_cap(shop, cap);
+public fun add_product(market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, description: String, image_url: String, price: u64) {
   assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
-  let shop_id = object::id(shop);
+  let shop_id = cap.get_shop_id_from_cap();
 
   let product = Product{
     shop_id,
