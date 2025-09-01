@@ -12,6 +12,8 @@ use usdc::usdc::USDC;
 use exclusuive::exclusuive_membership::MembershipType;
 use exclusuive::shop::{Self, Shop, ShopCap};
 
+const ENotAuthorized: u64 = 2;
+
 public struct RetailMarket has key {
   id: UID,
   shop_id: ID,
@@ -53,13 +55,13 @@ public struct PurchaseRequest {
   paid_by_points: u64
 }
 
-entry fun create_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext) {
-  let market = new_market(shop, shop_cap, ctx);
+entry fun create_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext) {
+  let market = new_market(shop, cap, ctx);
   transfer::share_object(market);
 }
 
-public fun new_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
-  shop::require_shop_cap(shop, shop_cap);
+public fun new_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
+  shop::require_shop_cap(shop, cap);
 
   let shop_id = object::id(shop);
   RetailMarket{
@@ -70,4 +72,9 @@ public fun new_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext): Ret
     custom_options: vec_map::empty(),
     option_index: 0
   }
+}
+
+public fun add_category(market: &mut RetailMarket, cap: &ShopCap, name: String) {
+  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+  market.categories.insert(name);
 }
