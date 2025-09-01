@@ -12,7 +12,7 @@ use usdc::usdc::USDC;
 use exclusuive::exclusuive_membership::MembershipType;
 use exclusuive::shop::{Self, Shop, ShopCap};
 
-public struct RetailMarket has key, store {
+public struct RetailMarket has key {
   id: UID,
   shop_id: ID,
   balance: Balance<USDC>,
@@ -53,7 +53,10 @@ public struct PurchaseRequest {
   paid_by_points: u64
 }
 
-entry fun create_market() {}
+entry fun create_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext) {
+  let market = new_market(shop, shop_cap, ctx);
+  transfer::share_object(market);
+}
 
 public fun new_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
   shop::require_shop_cap(shop, shop_cap);
