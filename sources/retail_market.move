@@ -8,6 +8,8 @@ use sui::vec_map::VecMap;
 
 use usdc::usdc::USDC;
 
+use exclusuive::exclusuive_membership::MembershipType;
+
 public struct RetailMarket has key, store {
   id: UID,
   shop_id: ID,
@@ -37,7 +39,7 @@ public struct Reciept has key, store {
   id: UID,
   shop_id: ID,
   products: vector<Product>,
-  // membership: Membership
+  membership_type: MembershipType
 }
 
 public struct MembershipPointPolicyKey has store, copy, drop {}
