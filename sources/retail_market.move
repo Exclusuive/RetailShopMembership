@@ -119,3 +119,33 @@ public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, produ
   assert!(product.category_name == custom_option.category_name);
   product.option_indexes.push_back(option_index);
 }
+
+public fun purchase_products(market: &RetailMarket, product_names: vector<String>, option_indexes_vec: vector<vector<u64>>): vector<PurchaseRequest> {
+  let mut purchase_request_vec = vector<PurchaseRequest>[];
+
+  product_names.do!(|name| {
+    let (_, index) = product_names.index_of(&name);
+    let product = df::borrow<String, Product>(&market.id, name);
+    let option_indexes = option_indexes_vec.borrow(index);
+
+    let purchase_request = request_purchase(market, product, option_indexes);
+
+    purchase_request_vec.push_back(purchase_request);
+  });
+
+  purchase_request_vec
+}
+
+fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
+  let mut total_price = product.price;
+  option_indexes.do_ref!(|i| {
+    let option = market.custom_options.get(i);
+    total_price = total_price + option.price;
+  });
+
+  PurchaseRequest {
+    price: total_price,
+    paid: 0,
+    paid_by_points: 0
+  }
+}
