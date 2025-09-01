@@ -13,6 +13,7 @@ use exclusuive::exclusuive_membership::MembershipType;
 use exclusuive::shop::{Self, Shop, ShopCap};
 
 const ENotAuthorized: u64 = 2;
+const ENotEqualCategoryName: u64 = 3;
 
 public struct RetailMarket has key {
   id: UID,
@@ -107,4 +108,14 @@ public fun add_product(market: &mut RetailMarket, cap: &ShopCap, category_name: 
   };
 
   df::add(&mut market.id, name, product);
+}
+
+public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, product_name: String, option_index: u64) {
+  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+
+  let product = df::borrow_mut<String, Product>(&mut market.id, product_name);
+  let custom_option = market.custom_options.get(&option_index);
+
+  assert!(product.category_name == custom_option.category_name);
+  product.option_indexes.push_back(option_index);
 }
