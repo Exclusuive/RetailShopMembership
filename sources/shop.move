@@ -106,7 +106,7 @@ public fun add_config(
     );
 }
 
-public fun require_shop_cap(shop: &mut Shop, shop_cap: &mut ShopCap) {
+public fun require_shop_cap(shop: &Shop, shop_cap: &ShopCap) {
     assert!(shop_cap.shop_id == object::id(shop), ENotAuthorized);
 }
 

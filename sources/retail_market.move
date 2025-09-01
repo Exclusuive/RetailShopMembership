@@ -3,12 +3,14 @@ module exclusuive::retail_market;
 use std::string::String;
 
 use sui::balance::{Self, Balance};
-use sui::vec_set::VecSet;
-use sui::vec_map::VecMap;
+use sui::vec_set::{Self,VecSet};
+use sui::vec_map::{Self, VecMap};
+use sui::object::{Self};
 
 use usdc::usdc::USDC;
 
 use exclusuive::exclusuive_membership::MembershipType;
+use exclusuive::shop::{Self, Shop, ShopCap};
 
 public struct RetailMarket has key, store {
   id: UID,
@@ -53,4 +55,16 @@ public struct PurchaseRequest {
 
 entry fun create_market() {}
 
-public fun new_market() {}
+public fun new_market(shop: &Shop, shop_cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
+  shop::require_shop_cap(shop, shop_cap);
+
+  let shop_id = object::id(shop);
+  RetailMarket{
+    id: object::new(ctx),
+    shop_id,
+    balance: balance::zero(),
+    categories: vec_set::empty(),
+    custom_options: vec_map::empty(),
+    option_index: 0
+  }
+}
