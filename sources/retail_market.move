@@ -5,7 +5,7 @@ use std::string::String;
 use sui::balance::{Self, Balance};
 use sui::vec_set::{Self,VecSet};
 use sui::vec_map::{Self, VecMap};
-use sui::object::{Self};
+use sui::dynamic_field::{Self as df};
 
 use usdc::usdc::USDC;
 
@@ -90,4 +90,22 @@ public fun add_custom_option(market: &mut RetailMarket, cap: &ShopCap, category_
     price
   };
   market.custom_options.insert(current_index, custom_option);
+}
+
+public fun add_product(shop: &Shop, market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, description: String, image_url: String, price: u64) {
+  shop::require_shop_cap(shop, cap);
+  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+  let shop_id = object::id(shop);
+
+  let product = Product{
+    shop_id,
+    category_name,
+    option_indexes: vector<u64>[],
+    name,
+    description,
+    image_url,
+    price
+  };
+
+  df::add(&mut market.id, name, product);
 }
