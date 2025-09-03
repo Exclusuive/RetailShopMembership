@@ -233,24 +233,24 @@ public fun get_membership_type(
     )
 }
 
-public fun get_membership_name(membership: &Membership): &String {
-    &membership.name
+public fun get_membership_name(membership: &Membership): String {
+    membership.name
 }
 
-public fun get_membership_image_url(membership: &Membership): &String {
-    &membership.image_url
+public fun get_membership_image_url(membership: &Membership): String {
+    membership.image_url
 }
 
-public fun get_membership_type_image_url(shop: &mut Shop, name: String): &String {
-    &get_membership_type(shop, name).image_url
+public fun get_membership_type_image_url(shop: &mut Shop, name: String): String {
+    get_membership_type(shop, name).image_url
 }
 
-public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): &bool {
-    &get_membership_type(shop, name).allow_user_mint
+public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): bool {
+    get_membership_type(shop, name).allow_user_mint
 }
 
-public fun get_membership_type_valid_period(shop: &mut Shop, name: String): &Option<u64> {
-    &get_membership_type(shop, name).period
+public fun get_membership_type_valid_period(shop: &mut Shop, name: String): Option<u64> {
+    get_membership_type(shop, name).period
 }
 
 // =======================================================

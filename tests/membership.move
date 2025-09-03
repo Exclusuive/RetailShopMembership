@@ -166,7 +166,7 @@ module exclusuive::membership_tests {
         // membership 동기화
         em::update_membership(&mut shop, &mut m);
 
-        assert!(string::as_bytes(em::get_membership_image_url(&m)) == string::as_bytes(&string::utf8(b"url2")), 0);
+        assert!(string::as_bytes(&em::get_membership_image_url(&m)) == string::as_bytes(&string::utf8(b"url2")), 0);
         transfer::public_transfer(m, t.sender());   
         ts::return_shared(shop);
         t.return_to_sender(cap);
