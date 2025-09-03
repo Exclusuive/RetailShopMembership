@@ -32,6 +32,7 @@ public struct Membership has key, store {
     image_url: String,
     expiry_date: u64,
     version: u64,
+    points: u64
 }
 
 public struct MembershipTypeKey<phantom T> has copy, drop, store {
@@ -184,6 +185,7 @@ public fun new_membership(
         image_url: membership_type.image_url,
         expiry_date: ctx.epoch_timestamp_ms() + option::get_with_default(&membership_type.period, MAX_EXPIRY_DATE),
         version: membership_type.version,
+        points: 0
     };
 
     emit(MembershipCreated {
@@ -222,7 +224,7 @@ public fun check_membership_type(shop: &mut Shop, name: String): bool {
 
 
 public fun get_membership_type(
-    shop: &mut Shop,
+    shop: &Shop,
     name: String,
 ): &MembershipType {
     dynamic_field::borrow(
@@ -249,4 +251,12 @@ public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): &
 
 public fun get_membership_type_valid_period(shop: &mut Shop, name: String): &Option<u64> {
     &get_membership_type(shop, name).period
+}
+
+// =======================================================
+// ======================== internal Functions
+// =======================================================
+
+public (package) fun withdraw_membership_points(membership: &mut Membership, amount: u64) {
+    membership.points = membership.points - amount;
 }

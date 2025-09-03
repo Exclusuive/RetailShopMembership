@@ -118,7 +118,7 @@ module exclusuive::membership_tests {
 
         // membership 발급
         let m: em::Membership = em::new_membership(&mut shop, &mut cap, string::utf8(b"VIP"), t.ctx());
-        assert!(string::as_bytes(em::get_membership_name(&m)) == string::as_bytes(&string::utf8(b"VIP")), 0);
+        assert!(string::as_bytes(&em::get_membership_name(&m)) == string::as_bytes(&string::utf8(b"VIP")), 0);
         transfer::public_transfer(m, t.sender());   
         ts::return_shared(shop);
         t.return_to_sender(cap);

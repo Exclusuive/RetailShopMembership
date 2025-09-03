@@ -9,8 +9,9 @@ use sui::dynamic_field::{Self as df};
 
 use usdc::usdc::USDC;
 
-use exclusuive::exclusuive_membership::MembershipType;
+use exclusuive::exclusuive_membership::{Self, MembershipType};
 use exclusuive::shop::{Self, Shop, ShopCap};
+use exclusuive::exclusuive_membership::Membership;
 
 const ENotAuthorized: u64 = 2;
 const ENotEqualCategoryName: u64 = 3;
@@ -55,6 +56,7 @@ public struct MembershipPointPolicyKey has store, copy, drop {}
 public struct StampPolicyKey has store, copy, drop {}
 
 public struct PurchaseRequest {
+  product: Product,
   price: u64,
   paid: u64,
   paid_by_points: u64
@@ -148,9 +150,39 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
   purchase_request_vec
 }
 
+public fun pay(market: &mut RetailMarket, request: &mut PurchaseRequest, payment: &mut Balance<USDC>, amount: u64) {
+  let actual_payment = payment.split(amount);
+  market.add_balance(actual_payment);
+  request.paid = request.paid + amount;
+}
+
+public fun pay_with_membership_point(request: &mut PurchaseRequest, membership: &mut Membership, amount: u64) {
+  membership.withdraw_membership_points(amount);
+  request.paid_by_points = request.paid_by_points + amount;
+}
+
+public fun new_reciept(shop: &Shop, membership: &Membership, ctx: &mut TxContext): Reciept {
+  Reciept {
+    id: object::new(ctx),
+    shop_id: object::id(shop),
+    products: vector<Product>[],
+    membership_type: *exclusuive_membership::get_membership_type(shop, membership.get_membership_name())
+  }
+}
+
+public fun confirm_purchase_request(request: PurchaseRequest, reciept: &mut Reciept) {
+  let PurchaseRequest{product, price, paid, paid_by_points} = request;
+  assert!(price == paid + paid_by_points, 10);
+  reciept.products.push_back(product)
+}
+
 // =======================================================
 // ======================== internal Functions
 // =======================================================
+
+fun add_balance(market: &mut RetailMarket, balance: Balance<USDC>) {
+  market.balance.join(balance);
+}
 
 
 fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
@@ -161,6 +193,7 @@ fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &
   });
 
   PurchaseRequest {
+    product: *product,
     price: total_price,
     paid: 0,
     paid_by_points: 0
