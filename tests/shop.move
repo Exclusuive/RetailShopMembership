@@ -130,7 +130,7 @@ module exclusuive::shop_tests {
         let mut wrong_cap: shop::ShopCap = t.take_from_sender();
 
         // 여기서 바로 abort
-        shop::require_shop_cap(&mut shop, &mut wrong_cap);
+        shop::check_shop_cap(&mut shop, &mut wrong_cap);
 
         ts::return_shared(shop);
         t.return_to_sender(wrong_cap);

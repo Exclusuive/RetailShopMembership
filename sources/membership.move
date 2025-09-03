@@ -1,6 +1,6 @@
 module exclusuive::exclusuive_membership;
 
-use exclusuive::shop::{Shop, ShopCap, get_uid as get_uid_shop, get_mut_uid as get_mut_uid_shop, require_shop_cap};
+use exclusuive::shop::{Shop, ShopCap, get_uid as get_uid_shop, get_mut_uid as get_mut_uid_shop, check_shop_cap};
 use std::string::String;
 use sui::display;
 use sui::dynamic_field;
@@ -101,8 +101,8 @@ public fun new_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    require_shop_cap(shop, shop_cap);
-    assert!(!check_membership_type(shop, name), EAlreadyExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(!exists_membership_type(shop, name), EAlreadyExists);
 
     let shop_id = object::id(shop);
     
@@ -139,8 +139,8 @@ public fun update_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    require_shop_cap(shop, shop_cap);
-    assert!(check_membership_type(shop, name), ENotExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
 
@@ -170,8 +170,8 @@ public fun new_membership(
     name: String,
     ctx: &mut TxContext,
 ): Membership {
-    require_shop_cap(shop, shop_cap);
-    assert!(check_membership_type(shop, name), ENotExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
     let membership_type: &MembershipType = dynamic_field::borrow(
@@ -204,7 +204,7 @@ public fun update_membership(
     shop: &mut Shop,
     membership: &mut Membership,
 ) {
-    assert!(check_membership_type(shop, membership.name), ENotExists);
+    assert!(exists_membership_type(shop, membership.name), ENotExists);
     let shop_id = object::id(shop);
     let membership_type: &MembershipType = dynamic_field::borrow(
         get_uid_shop(shop),
@@ -214,7 +214,7 @@ public fun update_membership(
     membership.version = membership_type.version;
 }
 
-public fun check_membership_type(shop: &mut Shop, name: String): bool {
+public fun exists_membership_type(shop: &mut Shop, name: String): bool {
     let shop_id = object::id(shop);
     dynamic_field::exists_(
         get_uid_shop(shop),
