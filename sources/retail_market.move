@@ -15,6 +15,10 @@ use exclusuive::shop::{Self, Shop, ShopCap};
 const ENotAuthorized: u64 = 2;
 const ENotEqualCategoryName: u64 = 3;
 
+// =======================================================
+// ======================== Structs
+// =======================================================
+
 public struct RetailMarket has key {
   id: UID,
   shop_id: ID,
@@ -56,10 +60,18 @@ public struct PurchaseRequest {
   paid_by_points: u64
 }
 
+// =======================================================
+// ======================== Entry Functions
+// =======================================================
+
 entry fun create_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext) {
   let market = new_market(shop, cap, ctx);
   transfer::share_object(market);
 }
+
+// =======================================================
+// ======================== Public Functions
+// =======================================================
 
 public fun new_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
   shop::require_shop_cap(shop, cap);
@@ -135,6 +147,11 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
 
   purchase_request_vec
 }
+
+// =======================================================
+// ======================== internal Functions
+// =======================================================
+
 
 fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
   let mut total_price = product.price;
