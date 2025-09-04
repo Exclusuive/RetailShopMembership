@@ -1,6 +1,6 @@
 module exclusuive::exclusuive_membership;
 
-use exclusuive::shop::{Shop, ShopCap, get_uid as get_uid_shop, get_mut_uid as get_mut_uid_shop, require_shop_cap};
+use exclusuive::shop::{Shop, ShopCap, get_uid as get_uid_shop, get_mut_uid as get_mut_uid_shop, check_shop_cap};
 use std::string::String;
 use sui::display;
 use sui::dynamic_field;
@@ -32,6 +32,7 @@ public struct Membership has key, store {
     image_url: String,
     expiry_date: u64,
     version: u64,
+    points: u64
 }
 
 public struct MembershipTypeKey<phantom T> has copy, drop, store {
@@ -100,8 +101,8 @@ public fun new_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    require_shop_cap(shop, shop_cap);
-    assert!(!check_membership_type(shop, name), EAlreadyExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(!exists_membership_type(shop, name), EAlreadyExists);
 
     let shop_id = object::id(shop);
     
@@ -138,8 +139,8 @@ public fun update_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    require_shop_cap(shop, shop_cap);
-    assert!(check_membership_type(shop, name), ENotExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
 
@@ -169,8 +170,8 @@ public fun new_membership(
     name: String,
     ctx: &mut TxContext,
 ): Membership {
-    require_shop_cap(shop, shop_cap);
-    assert!(check_membership_type(shop, name), ENotExists);
+    check_shop_cap(shop, shop_cap);
+    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
     let membership_type: &MembershipType = dynamic_field::borrow(
@@ -184,6 +185,7 @@ public fun new_membership(
         image_url: membership_type.image_url,
         expiry_date: ctx.epoch_timestamp_ms() + option::get_with_default(&membership_type.period, MAX_EXPIRY_DATE),
         version: membership_type.version,
+        points: 0
     };
 
     emit(MembershipCreated {
@@ -202,7 +204,7 @@ public fun update_membership(
     shop: &mut Shop,
     membership: &mut Membership,
 ) {
-    assert!(check_membership_type(shop, membership.name), ENotExists);
+    assert!(exists_membership_type(shop, membership.name), ENotExists);
     let shop_id = object::id(shop);
     let membership_type: &MembershipType = dynamic_field::borrow(
         get_uid_shop(shop),
@@ -212,7 +214,7 @@ public fun update_membership(
     membership.version = membership_type.version;
 }
 
-public fun check_membership_type(shop: &mut Shop, name: String): bool {
+public fun exists_membership_type(shop: &mut Shop, name: String): bool {
     let shop_id = object::id(shop);
     dynamic_field::exists_(
         get_uid_shop(shop),
@@ -222,7 +224,7 @@ public fun check_membership_type(shop: &mut Shop, name: String): bool {
 
 
 public fun get_membership_type(
-    shop: &mut Shop,
+    shop: &Shop,
     name: String,
 ): &MembershipType {
     dynamic_field::borrow(
@@ -231,22 +233,30 @@ public fun get_membership_type(
     )
 }
 
-public fun get_membership_name(membership: &Membership): &String {
-    &membership.name
+public fun get_membership_name(membership: &Membership): String {
+    membership.name
 }
 
-public fun get_membership_image_url(membership: &Membership): &String {
-    &membership.image_url
+public fun get_membership_image_url(membership: &Membership): String {
+    membership.image_url
 }
 
-public fun get_membership_type_image_url(shop: &mut Shop, name: String): &String {
-    &get_membership_type(shop, name).image_url
+public fun get_membership_type_image_url(shop: &mut Shop, name: String): String {
+    get_membership_type(shop, name).image_url
 }
 
-public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): &bool {
-    &get_membership_type(shop, name).allow_user_mint
+public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): bool {
+    get_membership_type(shop, name).allow_user_mint
 }
 
-public fun get_membership_type_valid_period(shop: &mut Shop, name: String): &Option<u64> {
-    &get_membership_type(shop, name).period
+public fun get_membership_type_valid_period(shop: &mut Shop, name: String): Option<u64> {
+    get_membership_type(shop, name).period
+}
+
+// =======================================================
+// ======================== internal Functions
+// =======================================================
+
+public (package) fun withdraw_membership_points(membership: &mut Membership, amount: u64) {
+    membership.points = membership.points - amount;
 }

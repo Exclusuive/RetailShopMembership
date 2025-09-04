@@ -77,7 +77,7 @@ module exclusuive::membership_tests {
         em::update_membership_type(&mut shop, &mut cap, string::utf8(b"VIP"), string::utf8(b"url2"), false, option::some(100));
 
 
-        assert!(string::as_bytes(em::get_membership_type_image_url(&mut shop, string::utf8(b"VIP"))) == string::as_bytes(&string::utf8(b"url2")), 0);
+        assert!(string::as_bytes(&em::get_membership_type_image_url(&mut shop, string::utf8(b"VIP"))) == string::as_bytes(&string::utf8(b"url2")), 0);
 
         ts::return_shared(shop);
         t.return_to_sender(cap);
@@ -118,7 +118,7 @@ module exclusuive::membership_tests {
 
         // membership 발급
         let m: em::Membership = em::new_membership(&mut shop, &mut cap, string::utf8(b"VIP"), t.ctx());
-        assert!(string::as_bytes(em::get_membership_name(&m)) == string::as_bytes(&string::utf8(b"VIP")), 0);
+        assert!(string::as_bytes(&em::get_membership_name(&m)) == string::as_bytes(&string::utf8(b"VIP")), 0);
         transfer::public_transfer(m, t.sender());   
         ts::return_shared(shop);
         t.return_to_sender(cap);
@@ -166,7 +166,7 @@ module exclusuive::membership_tests {
         // membership 동기화
         em::update_membership(&mut shop, &mut m);
 
-        assert!(string::as_bytes(em::get_membership_image_url(&m)) == string::as_bytes(&string::utf8(b"url2")), 0);
+        assert!(string::as_bytes(&em::get_membership_image_url(&m)) == string::as_bytes(&string::utf8(b"url2")), 0);
         transfer::public_transfer(m, t.sender());   
         ts::return_shared(shop);
         t.return_to_sender(cap);

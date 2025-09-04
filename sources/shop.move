@@ -80,7 +80,7 @@ public fun update_shop(
     name: String,
     description: String,
 ) {
-    require_shop_cap(shop, shop_cap);
+    check_shop_cap(shop, shop_cap);
     shop.name = name;
     shop.description = description;
 
@@ -97,7 +97,7 @@ public fun add_config(
     type_name: String,
     content: String,
 ) {
-    require_shop_cap(shop, shop_cap);
+    check_shop_cap(shop, shop_cap);
 
     dynamic_field::add(
         &mut shop.id,
@@ -106,7 +106,7 @@ public fun add_config(
     );
 }
 
-public fun require_shop_cap(shop: &mut Shop, shop_cap: &mut ShopCap) {
+public fun check_shop_cap(shop: &Shop, shop_cap: &ShopCap) {
     assert!(shop_cap.shop_id == object::id(shop), ENotAuthorized);
 }
 
@@ -132,8 +132,8 @@ public(package) fun get_mut_uid(shop: &mut Shop): &mut UID {
     &mut shop.id
 }
 
-public fun get_shop_id_from_cap(shop_cap: &ShopCap): &ID {
-    &shop_cap.shop_id
+public fun get_shop_id_from_cap(shop_cap: &ShopCap): ID {
+    shop_cap.shop_id
 }
 
 public fun get_shop_name(shop: &Shop): &String {
