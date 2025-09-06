@@ -1,51 +1,46 @@
-// module exclusuive::membership_policy;
 
-// use sui::balance::{Self, Balance};
-// use sui::sui::SUI;
-// use sui::vec_set::{Self, VecSet};
-// use exclusuive::community::{Community, CommunityCap, get_uid as get_uid_community, get_mut_uid as get_mut_uid_community, require_community_cap};
-// use sui::dynamic_object_field;
+module exclusuive::membership_policy;
 
-// public struct MembershipPolicy<phantom T> has key {
-//     id : UID,
-//     community_id: ID,
-//     balance : Balance<SUI>,
-//     rules : VecSet<std::type_name::TypeName>,
-// }
+use exclusuive::shop::{Self, Shop, RetailMarket, Product, PurchaseRequest};
+use exclusuive::membership::{Self, Membership, MembershipType};
 
-// public struct TransferRequest<phantom T> has drop {
-//     paid : u64,
-//     from : ID,
-//     receipts : VecSet<std::type_name::TypeName>,
-// }
+use sui::balance::{Balance};
+use usdc::usdc::USDC;
 
-// public struct Rulekey<phantom T : drop> has copy, drop, store {
+// =======================================================
+// ======================== Structs
+// =======================================================
 
-// }
+public struct Reciept has key, store {
+  id: UID,
+  shop_id: ID,
+  products: vector<Product>,
+  membership_type: MembershipType
+}
 
+public fun pay(market: &mut RetailMarket, request: &mut PurchaseRequest, payment: &mut Balance<USDC>, amount: u64) {
+  let actual_payment = payment.split(amount);
+  market.add_balance(actual_payment);
+  request.add_paid(amount);
+}
 
-// public fun new_membership_policy(
-//     community: &mut Community,
-//     community_cap: &mut CommunityCap,
-//     ctx: &mut TxContext
-// ) {
-//     let id = object::new(ctx);
-//     let community_id = object::id(community);
-//     let policy = MembershipPolicy { id, community_id, balance: balance::zero<SUI>(), rules: vec_set::empty<std::type_name::TypeName>() };
-    
-//     dynamic_object_field::add(
-//         get_mut_uid_community(community),
-//         b"membership_policy",
-//         policy,
-//     );
-// }
+public fun pay_with_membership_point(request: &mut PurchaseRequest, membership: &mut Membership, amount: u64) {
+  membership.withdraw_membership_points(amount);
+  request.add_paid_by_points(amount);
+}
 
-// public fun add_rule(
-//     policy: &mut MembershipPolicy,
-//     community: &mut Community,
-//     community_cap: &mut CommunityCap,
-//     rule: std::type_name::TypeName,
-// ) {
-//     require_community_cap(community, community_cap);
-//     policy.rules.add(rule);
-// }
+public fun new_reciept(shop: &Shop, membership: &Membership, ctx: &mut TxContext): Reciept {
+  let membership_type_key = membership::new_membership_type_key(shop, membership.name());
+  Reciept {
+    id: object::new(ctx),
+    shop_id: object::id(shop),
+    products: vector<Product>[],
+    membership_type: *shop.df_borrow(membership_type_key)
+  }
+}
+
+public fun confirm_purchase_request(request: PurchaseRequest, reciept: &mut Reciept) {
+  let (product, price, paid, paid_by_points) = shop::unpack_purchase_request(request);
+  assert!(price == paid + paid_by_points, 10);
+  reciept.products.push_back(product)
+}
