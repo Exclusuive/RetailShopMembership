@@ -216,7 +216,7 @@ public fun add_custom_option(
   market.custom_options.insert(current_index, custom_option);
 }
 
-public fun add_product(
+public fun add_product_type(
     market: &mut RetailMarket, 
     cap: &ShopCap, 
     category_name: String, 
