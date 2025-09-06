@@ -51,7 +51,17 @@ public struct CustomOption has store {
   price: u64
 }
 
-public struct Product has copy, store {
+public struct ProductType has copy, store {
+  shop_id: ID,
+  category_name: String,
+  option_indexes: vector<u64>,
+  name: String,
+  description: String,
+  image_url: String,
+  price: u64
+}
+
+public struct Product has store {
   shop_id: ID,
   category_name: String,
   option_indexes: vector<u64>,
@@ -61,6 +71,7 @@ public struct Product has copy, store {
   price: u64
 
 }
+
 
 public struct PurchaseRequest {
   product: Product,
@@ -217,7 +228,7 @@ public fun add_product(
   assert!(market.shop_id == cap.shop_id , ENotAuthorized);
   let shop_id = cap.shop_id;
 
-  let product = Product{
+  let product = ProductType{
     shop_id,
     category_name,
     option_indexes: vector<u64>[],
@@ -233,7 +244,7 @@ public fun add_product(
 public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, product_name: String, option_index: u64) {
   assert!(market.shop_id == cap.shop_id , ENotAuthorized);
 
-  let product = df::borrow_mut<String, Product>(&mut market.id, product_name);
+  let product = df::borrow_mut<String, ProductType>(&mut market.id, product_name);
   let custom_option = market.custom_options.get(&option_index);
 
   assert!(product.category_name == custom_option.category_name);
@@ -246,10 +257,10 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
 
   product_names.do!(|name| {
     let (_, index) = product_names.index_of(&name);
-    let product = df::borrow<String, Product>(&market.id, name);
+    let product_type = df::borrow<String, ProductType>(&market.id, name);
     let option_indexes = option_indexes_vec.borrow(index);
 
-    let purchase_request = new_request_purchase(market, product, option_indexes);
+    let purchase_request = new_request_purchase(market, product_type, option_indexes);
 
     purchase_request_vec.push_back(purchase_request);
   });
@@ -320,16 +331,26 @@ public (package) fun add_balance(market: &mut RetailMarket, balance: Balance<USD
   market.balance.join(balance);
 }
 
-public (package) fun new_request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>)
+public (package) fun new_request_purchase(market: &RetailMarket, product_type: &ProductType, option_indexes: &vector<u64>)
 : PurchaseRequest {
-  let mut total_price = product.price;
+  let mut total_price = product_type.price;
   option_indexes.do_ref!(|i| {
     let option = market.custom_options.get(i);
     total_price = total_price + option.price;
   });
 
+  let product = Product {
+    shop_id: product_type.shop_id,
+    category_name: product_type.category_name,
+    option_indexes: vector<u64>[],
+    name: product_type.name,
+    description: product_type.description,
+    image_url: product_type.image_url,
+    price: product_type.price
+  };
+
   PurchaseRequest {
-    product: *product,
+    product,
     price: total_price,
     paid: 0,
     paid_by_points: 0
