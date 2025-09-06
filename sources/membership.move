@@ -162,7 +162,7 @@ public fun update_membership_type(
 }
 
 public fun new_membership(
-    shop: &mut Shop,
+    shop: &Shop,
     shop_cap: &mut ShopCap,
     name: String,
     ctx: &mut TxContext,
@@ -196,7 +196,7 @@ public fun new_membership(
 }
 
 public fun update_membership(
-    shop: &mut Shop,
+    shop: &Shop,
     membership: &mut Membership,
 ) {
     assert!(exists_membership_type(shop, membership.name), ENotExists);
@@ -207,7 +207,7 @@ public fun update_membership(
     membership.version = membership_type.version;
 }
 
-public fun exists_membership_type(shop: &mut Shop, name: String): bool {
+public fun exists_membership_type(shop: &Shop, name: String): bool {
     let shop_id = object::id(shop);
     shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name })
 }
