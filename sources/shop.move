@@ -11,11 +11,8 @@ use sui::dynamic_field::{Self as df};
 
 use usdc::usdc::USDC;
 
-use exclusuive::exclusuive_membership::{Self, MembershipType};
-use exclusuive::exclusuive_membership::Membership;
-
 const ENotAuthorized: u64 = 2;
-const ENotEqualCategoryName: u64 = 3;
+// const ENotEqualCategoryName: u64 = 3;
 
 // =======================================================
 // ======================== Structs for Shop
@@ -64,12 +61,6 @@ public struct Product has copy, store {
   image_url: String,
   price: u64
 
-}
-public struct Reciept has key, store {
-  id: UID,
-  shop_id: ID,
-  products: vector<Product>,
-  membership_type: MembershipType
 }
 
 public struct PurchaseRequest {
@@ -158,7 +149,7 @@ public fun update_shop(
     name: String,
     description: String,
 ) {
-    check_shop_cap(shop, shop_cap);
+    shop.check_cap(shop_cap);
     shop.name = name;
     shop.description = description;
 
@@ -175,7 +166,7 @@ public fun add_config(
     type_name: String,
     content: String,
 ) {
-    check_shop_cap(shop, shop_cap);
+    shop.check_cap(shop_cap);
 
     dynamic_field::add(
         &mut shop.id,
@@ -189,7 +180,7 @@ public fun add_config(
 // =======================================================
 
 public fun new_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext): RetailMarket  {
-  check_shop_cap(shop, cap);
+    shop.check_cap(cap);
 
   let shop_id = object::id(shop);
   RetailMarket{
@@ -255,7 +246,7 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
     let product = df::borrow<String, Product>(&market.id, name);
     let option_indexes = option_indexes_vec.borrow(index);
 
-    let purchase_request = request_purchase(market, product, option_indexes);
+    let purchase_request = new_request_purchase(market, product, option_indexes);
 
     purchase_request_vec.push_back(purchase_request);
   });
@@ -263,44 +254,9 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
   purchase_request_vec
 }
 
-public fun pay(market: &mut RetailMarket, request: &mut PurchaseRequest, payment: &mut Balance<USDC>, amount: u64) {
-  let actual_payment = payment.split(amount);
-  market.add_balance(actual_payment);
-  request.paid = request.paid + amount;
-}
-
-public fun pay_with_membership_point(request: &mut PurchaseRequest, membership: &mut Membership, amount: u64) {
-  membership.withdraw_membership_points(amount);
-  request.paid_by_points = request.paid_by_points + amount;
-}
-
-public fun new_reciept(shop: &Shop, membership: &Membership, ctx: &mut TxContext): Reciept {
-  Reciept {
-    id: object::new(ctx),
-    shop_id: object::id(shop),
-    products: vector<Product>[],
-    membership_type: *exclusuive_membership::get_membership_type(shop, membership.get_membership_name())
-  }
-}
-
-public fun confirm_purchase_request(request: PurchaseRequest, reciept: &mut Reciept) {
-  let PurchaseRequest{product, price, paid, paid_by_points} = request;
-  assert!(price == paid + paid_by_points, 10);
-  reciept.products.push_back(product)
-}
-
-
 // =======================================================
 // ======================== internal Functions
 // =======================================================
-
-public(package) fun get_uid(shop: &Shop): &UID {
-    &shop.id
-}
-
-public(package) fun get_mut_uid(shop: &mut Shop): &mut UID {
-    &mut shop.id
-}
 
 public fun get_shop_id_from_cap(shop_cap: &ShopCap): ID {
     shop_cap.shop_id
@@ -333,22 +289,51 @@ public fun get_config_content(config_type: &ConfigType): &String {
 }
 
 // =======================================================
-// ======================== internal util Functions
+// ======================== Package Functions
 // =======================================================
 
-public (package) fun check_shop_cap(shop: &Shop, shop_cap: &ShopCap) {
+// =========== Shop
+
+public (package) fun check_cap(shop: &Shop, shop_cap: &ShopCap) {
     assert!(shop_cap.shop_id == object::id(shop), ENotAuthorized);
 }
 
-// =======================================================
-// ======================== internal Functions for RetailMarket
-// =======================================================
+public (package) fun df_exists<Key: copy + drop + store>(
+    shop: &Shop,
+    key: Key,
+): bool {
+    dynamic_field::exists_( &shop.id, key)
+}
 
-fun add_balance(market: &mut RetailMarket, balance: Balance<USDC>) {
+public (package) fun df_borrow<Key: copy + drop + store, T: copy + drop + store>(
+    shop: &Shop,
+    key: Key,
+): &T {
+    dynamic_field::borrow( &shop.id, key)
+}
+
+public (package) fun df_borrow_mut<Key: copy + drop + store, T: copy + drop + store>(
+    shop: &mut Shop,
+    key: Key,
+): &mut T {
+    dynamic_field::borrow_mut( &mut shop.id, key)
+}
+
+public (package) fun df_add<Key: copy + drop + store, T: copy + drop + store>(
+    shop: &mut Shop,
+    key: Key,
+    value: T,
+){
+    dynamic_field::add( &mut shop.id, key, value);
+}
+
+// =========== RetailMarket
+
+public (package) fun add_balance(market: &mut RetailMarket, balance: Balance<USDC>) {
   market.balance.join(balance);
 }
 
-fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
+public (package) fun new_request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
   let mut total_price = product.price;
   option_indexes.do_ref!(|i| {
     let option = market.custom_options.get(i);
@@ -361,4 +346,19 @@ fun request_purchase(market: &RetailMarket, product: &Product, option_indexes: &
     paid: 0,
     paid_by_points: 0
   }
+}
+
+// =========== PurchaseRequest
+
+public (package) fun add_paid(request: &mut PurchaseRequest, amount: u64) {
+  request.paid = request.paid + amount;
+}
+
+public (package) fun add_paid_by_points(request: &mut PurchaseRequest, amount: u64) {
+  request.paid_by_points = request.paid_by_points + amount;
+}
+
+public (package) fun unpack_purchase_request(request: PurchaseRequest): (Product, u64, u64, u64) {
+  let PurchaseRequest{product, price, paid, paid_by_points} = request;
+  (product, price, paid, paid_by_points)
 }

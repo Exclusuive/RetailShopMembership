@@ -1,9 +1,8 @@
-module exclusuive::exclusuive_membership;
+module exclusuive::membership;
 
-use exclusuive::shop::{Shop, ShopCap, get_uid as get_uid_shop, get_mut_uid as get_mut_uid_shop, check_shop_cap};
+use exclusuive::shop::{Shop, ShopCap};
 use std::string::String;
 use sui::display;
-use sui::dynamic_field;
 use sui::event::emit;
 use sui::package;
 
@@ -40,7 +39,8 @@ public struct MembershipTypeKey<phantom T> has copy, drop, store {
     name: String,
 }
 
-public struct EXCLUSUIVE_MEMBERSHIP has drop {}
+public struct MEMBERSHIP has drop {}
+
 
 // =======================================================
 // ======================== Events
@@ -72,7 +72,7 @@ public struct MembershipCreated has copy, drop {
     version: u64,
 }
 
-fun init(otw: EXCLUSUIVE_MEMBERSHIP, ctx: &mut TxContext) {
+fun init(otw: MEMBERSHIP, ctx: &mut TxContext) {
     let keys = vector[b"name".to_string(), b"image_url".to_string()];
 
     let values = vector[b"{name}".to_string(), b"{image_url}".to_string()];
@@ -93,6 +93,10 @@ fun init(otw: EXCLUSUIVE_MEMBERSHIP, ctx: &mut TxContext) {
     transfer::public_transfer(display, ctx.sender());
 }
 
+// =======================================================
+// ======================== Public Functions 
+// =======================================================
+
 public fun new_membership_type(
     shop: &mut Shop,
     shop_cap: &mut ShopCap,
@@ -101,7 +105,7 @@ public fun new_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    check_shop_cap(shop, shop_cap);
+    shop.check_cap(shop_cap);
     assert!(!exists_membership_type(shop, name), EAlreadyExists);
 
     let shop_id = object::id(shop);
@@ -124,11 +128,7 @@ public fun new_membership_type(
         version: membership_type.version,
     });
 
-    dynamic_field::add(
-        get_mut_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id, name },
-        membership_type,
-    );
+    shop.df_add(MembershipTypeKey<MembershipType> { shop_id, name }, membership_type);
 }
 
 public fun update_membership_type(
@@ -139,15 +139,12 @@ public fun update_membership_type(
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    check_shop_cap(shop, shop_cap);
+    shop.check_cap(shop_cap);
     assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
 
-    let membership_type: &mut MembershipType = dynamic_field::borrow_mut(
-        get_mut_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id, name },
-    );
+    let membership_type: &mut MembershipType = shop.df_borrow_mut(MembershipTypeKey<MembershipType> { shop_id, name });
 
     membership_type.image_url = image_url;
     membership_type.allow_user_mint = allow_user_mint;
@@ -170,14 +167,12 @@ public fun new_membership(
     name: String,
     ctx: &mut TxContext,
 ): Membership {
-    check_shop_cap(shop, shop_cap);
+    shop.check_cap(shop_cap);
     assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
-    let membership_type: &MembershipType = dynamic_field::borrow(
-        get_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id, name },
-    );
+    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name });
+
     let membership = Membership {
         id: object::new(ctx),
         shop_id,
@@ -206,56 +201,47 @@ public fun update_membership(
 ) {
     assert!(exists_membership_type(shop, membership.name), ENotExists);
     let shop_id = object::id(shop);
-    let membership_type: &MembershipType = dynamic_field::borrow(
-        get_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id, name: membership.name },
-    );
+    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name: membership.name });
+
     membership.image_url = membership_type.image_url;
     membership.version = membership_type.version;
 }
 
 public fun exists_membership_type(shop: &mut Shop, name: String): bool {
     let shop_id = object::id(shop);
-    dynamic_field::exists_(
-        get_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id, name },
-    )
+    shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name })
 }
 
+// =======================================================
+// ======================== Package Functions 
+// =======================================================
 
-public fun get_membership_type(
-    shop: &Shop,
-    name: String,
-): &MembershipType {
-    dynamic_field::borrow(
-        get_uid_shop(shop),
-        MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name },
-    )
+public (package) fun new_membership_type_key(shop: &Shop, name: String): MembershipTypeKey<MembershipType> {
+    MembershipTypeKey<MembershipType> {shop_id: object::id(shop), name}
 }
 
-public fun get_membership_name(membership: &Membership): String {
+public (package) fun name(membership: &Membership): String {
     membership.name
 }
 
-public fun get_membership_image_url(membership: &Membership): String {
+public (package) fun image_url(membership: &Membership): String {
     membership.image_url
 }
 
-public fun get_membership_type_image_url(shop: &mut Shop, name: String): String {
-    get_membership_type(shop, name).image_url
+public (package) fun mt_image_url(shop: &Shop, name: String): String {
+    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+    membership_type.image_url
 }
 
-public fun get_membership_type_allow_user_mint(shop: &mut Shop, name: String): bool {
-    get_membership_type(shop, name).allow_user_mint
+public (package) fun mt_allow_user_mint(shop: &Shop, name: String): bool {
+    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+    membership_type.allow_user_mint
 }
 
-public fun get_membership_type_valid_period(shop: &mut Shop, name: String): Option<u64> {
-    get_membership_type(shop, name).period
+public (package) fun mt_period(shop: &Shop, name: String): Option<u64> {
+    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+    membership_type.period
 }
-
-// =======================================================
-// ======================== internal Functions
-// =======================================================
 
 public (package) fun withdraw_membership_points(membership: &mut Membership, amount: u64) {
     membership.points = membership.points - amount;
