@@ -57,8 +57,7 @@ module exclusuive::shop_tests {
 
         // dynamic_field 존재 확인
         // 키/값 타입은 community 모듈의 제네릭 키와 값 타입을 그대로 사용
-        let exists = shop::check_config(&shop, type_name);
-        assert!(exists, 0);
+        assert!(shop.is_exists_config(type_name), 0);
 
         // 정리
         ts::return_shared(shop);
@@ -158,12 +157,12 @@ module exclusuive::shop_tests {
         shop::add_config(&mut shop, &mut cap, type_name, content);
 
         //    immutable borrow로 읽어서 content 비교
-        let cfg_ref: &shop::ConfigType = shop::get_config(&shop, type_name);
+        let config_content = shop.config_type(type_name).config_content();
 
         // 5) content == "enable-stablecoin-benefits" 확인
         let expect = string::utf8(b"enable-stablecoin-benefits");
         assert!(
-            string::as_bytes(shop::get_config_content(cfg_ref)) == string::as_bytes(&expect),
+            string::as_bytes(&config_content) == string::as_bytes(&expect),
             0
         );
 

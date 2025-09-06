@@ -12,7 +12,6 @@ use sui::dynamic_field::{Self as df};
 use usdc::usdc::USDC;
 
 const ENotAuthorized: u64 = 2;
-// const ENotEqualCategoryName: u64 = 3;
 
 // =======================================================
 // ======================== Structs for Shop
@@ -123,16 +122,9 @@ public fun new_shop(
     description: String,
     ctx: &mut TxContext,
 ): (Shop, ShopCap) {
-    let shop = Shop {
-        id: object::new(ctx),
-        name,
-        description,
-    };
+    let shop = Shop { id: object::new(ctx), name, description};
 
-    let shop_cap = ShopCap {
-        id: object::new(ctx),
-        shop_id: object::id(&shop),
-    };
+    let shop_cap = ShopCap { id: object::new(ctx), shop_id: object::id(&shop)};
 
     emit(ShopCreated {
         id: object::id(&shop),
@@ -194,26 +186,36 @@ public fun new_market(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext): RetailMa
 }
 
 public fun add_category(market: &mut RetailMarket, cap: &ShopCap, name: String) {
-  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+  assert!(market.shop_id == cap.shop_id , ENotAuthorized);
   market.categories.insert(name);
 }
 
-public fun add_custom_option(market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, price: u64) {
-  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+public fun add_custom_option(
+    market: &mut RetailMarket, 
+    cap: &ShopCap, 
+    category_name: String, 
+    name: String, 
+    price: u64
+) {
+  assert!(market.shop_id == cap.shop_id , ENotAuthorized);
   let current_index = market.option_index;
   market.option_index = current_index + 1;
 
-  let custom_option = CustomOption {
-    category_name,
-    name,
-    price
-  };
+  let custom_option = CustomOption { category_name, name, price };
   market.custom_options.insert(current_index, custom_option);
 }
 
-public fun add_product(market: &mut RetailMarket, cap: &ShopCap, category_name: String, name: String, description: String, image_url: String, price: u64) {
-  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
-  let shop_id = cap.get_shop_id_from_cap();
+public fun add_product(
+    market: &mut RetailMarket, 
+    cap: &ShopCap, 
+    category_name: String, 
+    name: String, 
+    description: String, 
+    image_url: String, 
+    price: u64
+) {
+  assert!(market.shop_id == cap.shop_id , ENotAuthorized);
+  let shop_id = cap.shop_id;
 
   let product = Product{
     shop_id,
@@ -229,7 +231,7 @@ public fun add_product(market: &mut RetailMarket, cap: &ShopCap, category_name: 
 }
 
 public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, product_name: String, option_index: u64) {
-  assert!(market.shop_id == cap.get_shop_id_from_cap() , ENotAuthorized);
+  assert!(market.shop_id == cap.shop_id , ENotAuthorized);
 
   let product = df::borrow_mut<String, Product>(&mut market.id, product_name);
   let custom_option = market.custom_options.get(&option_index);
@@ -238,7 +240,8 @@ public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, produ
   product.option_indexes.push_back(option_index);
 }
 
-public fun purchase_products(market: &RetailMarket, product_names: vector<String>, option_indexes_vec: vector<vector<u64>>): vector<PurchaseRequest> {
+public fun purchase_products(market: &RetailMarket, product_names: vector<String>, option_indexes_vec: vector<vector<u64>>)
+: vector<PurchaseRequest> {
   let mut purchase_request_vec = vector<PurchaseRequest>[];
 
   product_names.do!(|name| {
@@ -255,45 +258,10 @@ public fun purchase_products(market: &RetailMarket, product_names: vector<String
 }
 
 // =======================================================
-// ======================== internal Functions
-// =======================================================
-
-public fun get_shop_id_from_cap(shop_cap: &ShopCap): ID {
-    shop_cap.shop_id
-}
-
-public fun get_shop_name(shop: &Shop): &String {
-    &shop.name
-}
-
-public fun get_shop_description(shop: &Shop): &String {
-    &shop.description
-}
-
-public fun check_config(shop: &Shop, type_name: String): bool {
-    dynamic_field::exists_(
-        &shop.id,
-        TypeKey<ConfigType> { type_name },
-    )
-}
-
-public fun get_config(shop: &Shop, type_name: String): &ConfigType {
-    dynamic_field::borrow(
-        &shop.id,
-        TypeKey<ConfigType> { type_name },
-    )
-}
-
-public fun get_config_content(config_type: &ConfigType): &String {
-    &config_type.content
-}
-
-// =======================================================
 // ======================== Package Functions
 // =======================================================
 
 // =========== Shop
-
 public (package) fun check_cap(shop: &Shop, shop_cap: &ShopCap) {
     assert!(shop_cap.shop_id == object::id(shop), ENotAuthorized);
 }
@@ -327,13 +295,33 @@ public (package) fun df_add<Key: copy + drop + store, T: copy + drop + store>(
     dynamic_field::add( &mut shop.id, key, value);
 }
 
+public (package) fun is_exists_config(shop: &Shop, type_name: String): bool {
+    dynamic_field::exists_(
+        &shop.id,
+        TypeKey<ConfigType> { type_name },
+    )
+}
+
+public (package) fun config_type(shop: &Shop, type_name: String): &ConfigType {
+    dynamic_field::borrow(
+        &shop.id,
+        TypeKey<ConfigType> { type_name },
+    )
+}
+
+public (package) fun config_content(config_type: &ConfigType): String {
+    config_type.content
+}
+
+
 // =========== RetailMarket
 
 public (package) fun add_balance(market: &mut RetailMarket, balance: Balance<USDC>) {
   market.balance.join(balance);
 }
 
-public (package) fun new_request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>): PurchaseRequest {
+public (package) fun new_request_purchase(market: &RetailMarket, product: &Product, option_indexes: &vector<u64>)
+: PurchaseRequest {
   let mut total_price = product.price;
   option_indexes.do_ref!(|i| {
     let option = market.custom_options.get(i);
@@ -358,7 +346,8 @@ public (package) fun add_paid_by_points(request: &mut PurchaseRequest, amount: u
   request.paid_by_points = request.paid_by_points + amount;
 }
 
-public (package) fun unpack_purchase_request(request: PurchaseRequest): (Product, u64, u64, u64) {
+public (package) fun unpack_purchase_request(request: PurchaseRequest)
+: (Product, u64, u64, u64) {
   let PurchaseRequest{product, price, paid, paid_by_points} = request;
   (product, price, paid, paid_by_points)
 }
