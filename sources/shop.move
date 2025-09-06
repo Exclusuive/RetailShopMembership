@@ -241,14 +241,14 @@ public fun add_product_type(
   df::add(&mut market.id, name, product);
 }
 
-public fun add_option_to_product(market: &mut RetailMarket, cap: &ShopCap, product_name: String, option_index: u64) {
+public fun add_option_to_product_type(market: &mut RetailMarket, cap: &ShopCap, product_name: String, option_index: u64) {
   assert!(market.shop_id == cap.shop_id , ENotAuthorized);
 
-  let product = df::borrow_mut<String, ProductType>(&mut market.id, product_name);
+  let product_type = df::borrow_mut<String, ProductType>(&mut market.id, product_name);
   let custom_option = market.custom_options.get(&option_index);
 
-  assert!(product.category_name == custom_option.category_name);
-  product.option_indexes.push_back(option_index);
+  assert!(product_type.category_name == custom_option.category_name);
+  product_type.option_indexes.push_back(option_index);
 }
 
 public fun purchase_products(market: &RetailMarket, product_names: vector<String>, option_indexes_vec: vector<vector<u64>>)
