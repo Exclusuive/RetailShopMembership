@@ -106,9 +106,9 @@ public fun new_membership_type(
     period: Option<u64>,
 ) {
     shop.check_cap(shop_cap);
-    assert!(!exists_membership_type(shop, name), EAlreadyExists);
 
     let shop_id = object::id(shop);
+    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
     
     let membership_type = MembershipType {
         shop_id,
@@ -140,9 +140,9 @@ public fun update_membership_type(
     period: Option<u64>,
 ) {
     shop.check_cap(shop_cap);
-    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
+    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
 
     let membership_type: &mut MembershipType = shop.df_borrow_mut(MembershipTypeKey<MembershipType> { shop_id, name });
 
@@ -168,9 +168,10 @@ public fun new_membership(
     ctx: &mut TxContext,
 ): Membership {
     shop.check_cap(shop_cap);
-    assert!(exists_membership_type(shop, name), ENotExists);
 
     let shop_id = object::id(shop);
+    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
+
     let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name });
 
     let membership = Membership {
@@ -199,17 +200,13 @@ public fun update_membership(
     shop: &Shop,
     membership: &mut Membership,
 ) {
-    assert!(exists_membership_type(shop, membership.name), ENotExists);
     let shop_id = object::id(shop);
+    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: membership.name }), ENotExists);
+
     let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name: membership.name });
 
     membership.image_url = membership_type.image_url;
     membership.version = membership_type.version;
-}
-
-public fun exists_membership_type(shop: &Shop, name: String): bool {
-    let shop_id = object::id(shop);
-    shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name })
 }
 
 // =======================================================
