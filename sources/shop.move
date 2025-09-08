@@ -359,6 +359,15 @@ public (package) fun new_request_purchase(market: &RetailMarket, product_type: &
 
 // =========== PurchaseRequest
 
+public (package) fun price(request: &PurchaseRequest): u64 {
+  request.price
+}
+
+public (package) fun paid_by_points(request: &PurchaseRequest): u64 {
+  request.paid_by_points
+}
+
+
 public (package) fun add_paid(request: &mut PurchaseRequest, amount: u64) {
   request.paid = request.paid + amount;
 }
