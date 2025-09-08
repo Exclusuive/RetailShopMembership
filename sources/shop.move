@@ -1,7 +1,6 @@
 module exclusuive::shop;
 
 use std::string::String;
-use sui::dynamic_field;
 use sui::event::emit;
 
 use sui::balance::{Self, Balance};
@@ -171,7 +170,7 @@ public fun add_config(
 ) {
     shop.check_cap(shop_cap);
 
-    dynamic_field::add(
+    df::add(
         &mut shop.id,
         TypeKey<ConfigType> { type_name },
         ConfigType { content },
@@ -277,44 +276,12 @@ public (package) fun check_cap(shop: &Shop, shop_cap: &ShopCap) {
     assert!(shop_cap.shop_id == object::id(shop), ENotAuthorized);
 }
 
-public (package) fun df_exists<Key: copy + drop + store>(
-    shop: &Shop,
-    key: Key,
-): bool {
-    dynamic_field::exists_( &shop.id, key)
-}
-
-public (package) fun df_borrow<Key: copy + drop + store, T: copy + drop + store>(
-    shop: &Shop,
-    key: Key,
-): &T {
-    dynamic_field::borrow( &shop.id, key)
-}
-
-public (package) fun df_borrow_mut<Key: copy + drop + store, T: copy + drop + store>(
-    shop: &mut Shop,
-    key: Key,
-): &mut T {
-    dynamic_field::borrow_mut( &mut shop.id, key)
-}
-
-public (package) fun df_add<Key: copy + drop + store, T: copy + drop + store>(
-    shop: &mut Shop,
-    key: Key,
-    value: T,
-){
-    dynamic_field::add( &mut shop.id, key, value);
-}
-
-public (package) fun is_exists_config(shop: &Shop, type_name: String): bool {
-    dynamic_field::exists_(
-        &shop.id,
-        TypeKey<ConfigType> { type_name },
-    )
+public (package) fun shop_id(shop_cap: &ShopCap): ID {
+  shop_cap.shop_id
 }
 
 public (package) fun config_type(shop: &Shop, type_name: String): &ConfigType {
-    dynamic_field::borrow(
+    df::borrow(
         &shop.id,
         TypeKey<ConfigType> { type_name },
     )

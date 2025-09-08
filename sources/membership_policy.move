@@ -8,10 +8,12 @@ use sui::balance::{Balance};
 use sui::event::emit;
 use sui::display;
 use sui::package;
+use sui::dynamic_field::{Self as df};
 
 use usdc::usdc::USDC;
 
 const ENotExists: u64 = 4;
+const ENotAuthorized: u64 = 2;
 
 const MAX_EXPIRY_DATE: u64 = 18446744073709551615;
 
@@ -108,22 +110,41 @@ fun init(otw: MEMBERSHIP_POLICY, ctx: &mut TxContext) {
 }
 
 // =======================================================
+// ======================== Entry Functions
+// =======================================================
+entry fun create_membership_policy(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext) {
+  let policy = new_membership_policy(shop, cap, ctx);
+  transfer::share_object(policy);
+}
+
+// =======================================================
 // ======================== Public Functions 
 // =======================================================
 
+public fun new_membership_policy(shop: &Shop, cap: &ShopCap, ctx: &mut TxContext): MembershipPolicy  {
+    shop.check_cap(cap);
+
+  let shop_id = object::id(shop);
+  MembershipPolicy{
+    id: object::new(ctx),
+    shop_id,
+  }
+}
+
 // =============== Membership Type
 public fun new_membership_type(
-    shop: &mut Shop,
+    policy: &mut MembershipPolicy,
     shop_cap: &mut ShopCap,
     name: String,
     image_url: String,
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    shop.check_cap(shop_cap);
+    policy.check_cap(shop_cap);
 
-    let shop_id = object::id(shop);
-    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
+
+    let shop_id = policy.shop_id;
+    assert!(df::exists_(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name}), ENotExists);
     
     let membership_type = MembershipType {
         shop_id,
@@ -143,23 +164,23 @@ public fun new_membership_type(
         version: membership_type.version,
     });
 
-    shop.df_add(MembershipTypeKey<MembershipType> { shop_id, name }, membership_type);
+    df::add(&mut policy.id, MembershipTypeKey<MembershipType> { shop_id, name }, membership_type);
 }
 
 public fun update_membership_type(
-    shop: &mut Shop,
+    policy: &mut MembershipPolicy,
     shop_cap: &mut ShopCap,
     name: String,
     image_url: String,
     allow_user_mint: bool,
     period: Option<u64>,
 ) {
-    shop.check_cap(shop_cap);
+    policy.check_cap(shop_cap);
 
-    let shop_id = object::id(shop);
-    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
+    let shop_id = policy.shop_id;
+    assert!(df::exists_(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name}), ENotExists);
 
-    let membership_type: &mut MembershipType = shop.df_borrow_mut(MembershipTypeKey<MembershipType> { shop_id, name });
+    let membership_type: &mut MembershipType = df::borrow_mut(&mut policy.id, MembershipTypeKey<MembershipType> { shop_id, name });
 
     membership_type.image_url = image_url;
     membership_type.allow_user_mint = allow_user_mint;
@@ -178,17 +199,17 @@ public fun update_membership_type(
 
 // =============== Membership 
 public fun new_membership(
-    shop: &Shop,
+    policy: &MembershipPolicy,
     shop_cap: &mut ShopCap,
     name: String,
     ctx: &mut TxContext,
 ): Membership {
-    shop.check_cap(shop_cap);
+    policy.check_cap(shop_cap);
 
-    let shop_id = object::id(shop);
-    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: name }), ENotExists);
+    let shop_id = policy.shop_id;
+    assert!(df::exists_(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name}), ENotExists);
 
-    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name });
+    let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name });
 
     let membership = Membership {
         id: object::new(ctx),
@@ -213,26 +234,28 @@ public fun new_membership(
 }
 
 public fun update_membership(
-    shop: &Shop,
+    // shop: &Shop,
+    policy: &MembershipPolicy,
     membership: &mut Membership,
 ) {
-    let shop_id = object::id(shop);
-    assert!(shop.df_exists(MembershipTypeKey<MembershipType> { shop_id, name: membership.name }), ENotExists);
+    let shop_id = policy.shop_id;
+    assert!(df::exists_(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name: membership.name}), ENotExists);
 
-    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id, name: membership.name });
+    let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name: membership.name });
 
     membership.image_url = membership_type.image_url;
     membership.version = membership_type.version;
 }
 
 // =============== Payment 
-public fun new_reciept(shop: &Shop, membership: &Membership, ctx: &mut TxContext): Reciept {
-  let membership_type_key = new_membership_type_key(shop, membership.name());
+public fun new_reciept(policy: &MembershipPolicy, membership: &Membership, ctx: &mut TxContext): Reciept {
+  let shop_id = policy.shop_id;
+  let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name: membership.name });
   Reciept {
     id: object::new(ctx),
-    shop_id: object::id(shop),
+    shop_id,
     products: vector<Product>[],
-    membership_type: *shop.df_borrow(membership_type_key)
+    membership_type: *membership_type
   }
 }
 
@@ -277,6 +300,9 @@ public fun confirm_purchase_request(request: PurchaseRequest, reciept: &mut Reci
 // =======================================================
 // ======================== Package Functions 
 // =======================================================
+public (package) fun check_cap(policy: &MembershipPolicy, shop_cap: &ShopCap) {
+    assert!(policy.shop_id == shop_cap.shop_id(), ENotAuthorized);
+}
 
 public (package) fun new_membership_type_key(shop: &Shop, name: String): MembershipTypeKey<MembershipType> {
     MembershipTypeKey<MembershipType> {shop_id: object::id(shop), name}
@@ -290,18 +316,21 @@ public (package) fun image_url(membership: &Membership): String {
     membership.image_url
 }
 
-public (package) fun mt_image_url(shop: &Shop, name: String): String {
-    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+public (package) fun mt_image_url(policy: &MembershipPolicy, name: String): String {
+    let shop_id = policy.shop_id;
+    let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name});
     membership_type.image_url
 }
 
-public (package) fun mt_allow_user_mint(shop: &Shop, name: String): bool {
-    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+public (package) fun mt_allow_user_mint(policy: &MembershipPolicy, name: String): bool {
+    let shop_id = policy.shop_id;
+    let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name});
     membership_type.allow_user_mint
 }
 
-public (package) fun mt_period(shop: &Shop, name: String): Option<u64> {
-    let membership_type: &MembershipType = shop.df_borrow(MembershipTypeKey<MembershipType> { shop_id: object::id(shop), name });
+public (package) fun mt_period(policy: &MembershipPolicy, name: String): Option<u64> {
+    let shop_id = policy.shop_id;
+    let membership_type: &MembershipType = df::borrow(&policy.id, MembershipTypeKey<MembershipType> { shop_id, name});
     membership_type.period
 }
 
